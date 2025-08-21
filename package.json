@@ -1,0 +1,21 @@
+{
+  "name": "dashboardServer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start":"node index.js",
+    "dev": "node --watch --experimental-strip-types --env-file=.env index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.14.0",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0"
+  }
+}
