@@ -1,5 +1,6 @@
-import app from "./app/app.js";
+
 import http from 'http';
+import app from './server/app/app.js';
 
 const server = http.createServer(app);
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
