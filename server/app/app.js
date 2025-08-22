@@ -1,5 +1,6 @@
 import express from 'express';
-import path, { dirname } from "path";
+import session from "express-session";
+import path from "path";
 import cors from 'cors';
 import helmet from 'helmet';
 import indexRoutes from "../routes/index.routes.js"
@@ -12,7 +13,16 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json()); 
+app.use(express.json());
+
+app.use(
+    session({
+        secret: process.env.SESSION_SECRET || "supersecreto", // clave secreta
+        resave: false, // no re-graba si no hubo cambios
+        saveUninitialized: false, // no guarda sesiones vacías
+        cookie: { secure: false } // ⚠️ en producción ponlo en true con HTTPS
+    })
+);
 
 app.use(express.static(distPath, { maxAge: "1d" }));
 

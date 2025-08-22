@@ -1,3 +1,7 @@
+import crypto from "crypto";
+import config from "../config/environment"
+const { GOOGLE_REDIRECT_URI, GOOGLE_CLIENT_ID } = config;
+
 export async function authStatus(req, res, next) {
     try {
         // Verificar si hay un token en los headers
@@ -41,20 +45,19 @@ export async function googleAuth(req, res, next) {
         req.session.oauth_state = state;
 
         // 3. Crear la URL de autorización de Google
-        const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth' +
-            new URLSearchParams({
-                client_id: process.env.GOOGLE_CLIENT_ID,
-                redirect_uri: 'http://localhost:3000/auth/google/callback',
-                response_type: 'code',
-                scope: 'openid email profile',
-                state: state,
-                access_type: 'offline',
-                prompt: 'consent'
-            });
+        const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+        url.search = new URLSearchParams({
+            client_id: GOOGLE_CLIENT_ID,
+            redirect_uri: GOOGLE_REDIRECT_URI,
+            response_type: "code",
+            scope: "openid email profile",
+            state,
+            access_type: "offline",
+            prompt: "consent",
+        }).toString();
 
-        // 4. Redirigir al usuario a Google
-        console.log('📱 Redirigiendo a Google:', googleAuthUrl);
-        res.redirect(googleAuthUrl);
+        console.log("➡️ Redirigiendo a:", url.toString());
+        res.redirect(url.toString());
     } catch (error) {
         console.error('Error en googleAuth:', error);
         res.status(500).json({
@@ -63,3 +66,30 @@ export async function googleAuth(req, res, next) {
         });
     }
 }
+export async function googleCallback(req, res, next) {
+    console.log("🔄 Callback de Google recibido");
+    try {
+        // 1. Verificar el estado
+        const { state, code } = req.query;
+        if (!code) return res.status(400).json({ status: "error", message: "Falta code" });
+        if (state !== req.session.oauth_state) {
+            return res.status(403).json({
+                message: "Estado no válido",
+                status: "error"
+            });
+        }
+        delete req.session.oauth_state;
+
+        const { access_token, id_token, refresh_token, expires_in } = await exchangeCodeForToken(String(code));
+
+
+        console.log("state:", state);
+    } catch (error) {
+        console.error('Error en googleCallback:', error);
+        res.status(500).json({
+            message: "Error interno del servidor",
+            status: "error"
+        });
+    }
+}
+

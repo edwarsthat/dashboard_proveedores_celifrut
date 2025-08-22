@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start":"node --env-file=.env index.js",
+    "start": "node --env-file=.env index.js",
     "dev": "node --watch --env-file=.env index.js"
   },
   "keywords": [],
@@ -16,6 +16,8 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "helmet": "^8.1.0"
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "jose": "^6.0.13"
   }
 }
