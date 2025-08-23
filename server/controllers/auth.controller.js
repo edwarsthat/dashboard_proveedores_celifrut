@@ -1,5 +1,6 @@
 import crypto from "crypto";
-import config from "../config/environment"
+import config from "../config/environment.js"
+import { exchangeCodeForToken, getUserInfo } from "../services/auth.service.js";
 const { GOOGLE_REDIRECT_URI, GOOGLE_CLIENT_ID } = config;
 
 export async function authStatus(req, res, next) {
@@ -57,7 +58,7 @@ export async function googleAuth(req, res, next) {
         }).toString();
 
         console.log("➡️ Redirigiendo a:", url.toString());
-        res.redirect(url.toString());
+        res.json({ url: url.toString() });
     } catch (error) {
         console.error('Error en googleAuth:', error);
         res.status(500).json({
@@ -82,8 +83,36 @@ export async function googleCallback(req, res, next) {
 
         const { access_token, id_token, refresh_token, expires_in } = await exchangeCodeForToken(String(code));
 
+        // 3. Decodificar el ID token para obtener info del usuario
+        const userInfo = await getUserInfo(id_token);
+        console.log("👤 Información del usuario:", userInfo);
 
-        console.log("state:", state);
+        // 4. Aquí tienes el email del usuario
+        const userEmail = userInfo.email;
+        console.log("📧 Email del usuario:", userEmail);
+
+        // 5. Guardar información en la sesión
+        req.session.user = {
+            id: userInfo.sub, // ID único de Google
+            email: userInfo.email,
+            name: userInfo.name,
+            picture: userInfo.picture,
+            accessToken: access_token,
+            refreshToken: refresh_token, // puede ser undefined si no se otorga
+            tokenExpires: Date.now() + (expires_in * 1000)
+        };
+
+        // 6. Respuesta exitosa - puedes redirigir o devolver JSON
+        res.status(200).json({
+            status: "success",
+            message: "Autenticación exitosa",
+            user: {
+                email: userInfo.email,
+                name: userInfo.name,
+                picture: userInfo.picture
+            }
+        });
+
     } catch (error) {
         console.error('Error en googleCallback:', error);
         res.status(500).json({

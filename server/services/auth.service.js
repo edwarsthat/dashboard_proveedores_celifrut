@@ -1,4 +1,4 @@
-import config from "../config/environment"
+import config from "../config/environment.js"
 const { GOOGLE_REDIRECT_URI, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = config;
 
 export async function exchangeCodeForToken(code) {
@@ -21,4 +21,29 @@ export async function exchangeCodeForToken(code) {
         throw new Error("No se pudo canjear el code");
     }
     return json; // { access_token, id_token, refresh_token?, expires_in, ... }
+}
+
+export async function getUserInfo(idToken) {
+    try {
+        // Decodificar el JWT sin verificar (Google ya lo firmó)
+        const payload = JSON.parse(
+            Buffer.from(idToken.split('.')[1], 'base64').toString()
+        );
+        
+        // Verificar que el token no haya expirado
+        if (payload.exp * 1000 < Date.now()) {
+            throw new Error('Token expirado');
+        }
+
+        return {
+            sub: payload.sub,      // ID único del usuario
+            email: payload.email,  // Email del usuario
+            name: payload.name,    // Nombre completo
+            picture: payload.picture, // URL de la foto de perfil
+            email_verified: payload.email_verified
+        };
+    } catch (error) {
+        console.error('Error decodificando ID token:', error);
+        throw new Error('Token inválido');
+    }
 }
