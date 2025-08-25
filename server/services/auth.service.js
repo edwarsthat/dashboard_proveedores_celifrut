@@ -22,7 +22,6 @@ export async function exchangeCodeForToken(code) {
     }
     return json; // { access_token, id_token, refresh_token?, expires_in, ... }
 }
-
 export async function getUserInfo(idToken) {
     try {
         // Decodificar el JWT sin verificar (Google ya lo firmó)

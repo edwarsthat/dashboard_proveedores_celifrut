@@ -11,5 +11,15 @@ export default {
 
     //sesion secret
     SESSION_SECRET: process.env.SESSION_SECRET,
-    GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI
+    GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+
+    // Lista de correos autorizados (separados por coma en variable de entorno)
+    AUTHORIZED_EMAILS: process.env.AUTHORIZED_EMAILS ? 
+        process.env.AUTHORIZED_EMAILS.split(',').map(email => email.trim().toLowerCase()) : 
+        [
+            'admin@celifrut.com',
+            'gerencia@celifrut.com',
+            'sistemacelifrut@gmail.com',
+            // Agregar más correos según sea necesario
+        ]
 }
