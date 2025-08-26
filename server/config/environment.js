@@ -20,6 +20,7 @@ export default {
             'admin@celifrut.com',
             'gerencia@celifrut.com',
             'sistemacelifrut@gmail.com',
+            "edwarsthat@gmail.com"
             // Agregar más correos según sea necesario
         ]
 }
