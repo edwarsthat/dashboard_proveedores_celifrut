@@ -5,6 +5,10 @@ export default {
     //Celifrut app port
     PORT: process.env.PORT || 3001,
 
+    //uri base de datos
+    MONGODB_PROCESO: process.env.MONGODB_PROCESO || "mongodb://localhost:27017/proceso",
+    MONGODB_SISTEMA: process.env.MONGODB_SISTEMA || "mongodb://localhost:27017/sistema",
+
     //Clientes ids
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
