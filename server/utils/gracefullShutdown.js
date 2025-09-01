@@ -25,7 +25,7 @@ class Shutdown {
             try {
                 // 1. Dejar de aceptar nuevas conexiones
                 console.log('🚪 Cerrando servidor HTTP...');
-                await this.closeServer(server);
+                await server.close();
 
                 // 2. Cerrar conexiones de base de datos
                 console.log('🔐 Cerrando conexiones de base de datos...');

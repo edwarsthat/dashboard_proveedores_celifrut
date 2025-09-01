@@ -1,39 +1,46 @@
 import crypto from "crypto";
 import config from "../config/environment.js"
 import { exchangeCodeForToken, getUserInfo } from "../services/auth.service.js";
-const { GOOGLE_REDIRECT_URI, GOOGLE_CLIENT_ID, AUTHORIZED_EMAILS } = config;
+import cacheEmail from "../cache/authorizedEmails.js";
+import customLogger from "../config/winston.config.js";
+import { AuthValidation } from "../validations/authentication.validation.js";
+import { generateCallbackHTML, generateSecureState } from "../utils/authetication.js";
+import { AuthenticationError } from "../errors/Auth.error.js";
+import activeUsersCache from "../cache/activeUsers.js";
+const { GOOGLE_REDIRECT_URI, GOOGLE_CLIENT_ID } = config;
 
-// Función para validar si el correo está autorizado
-function isEmailAuthorized(email) {
-    const normalizedEmail = email.toLowerCase().trim();
-    return AUTHORIZED_EMAILS.includes(normalizedEmail);
-}
 
 export async function authStatus(req, res, next) {
     try {
-        // Verificar si hay un token en los headers
-        const token = req.headers.authorization;
-
-        if (!token) {
+        // ✅ Verificar sesión en lugar de token en headers
+        if (!req.session?.user) {
             return res.status(401).json({
-                message: "No se encontró token de autenticación",
+                message: "No se encontró sesión válida",
+                authenticated: false,
+                status: "error"
+            });
+        }
+        const user = req.session.user; // Agregar esta línea
+
+        // Verificar si el usuario sigue autorizado
+        if (!cacheEmail.isAuthorized(user.email)) {
+            // Destruir sesión si ya no está autorizado
+            req.session.destroy();
+            return res.status(401).json({
+                message: "Usuario ya no autorizado",
                 authenticated: false,
                 status: "error"
             });
         }
 
-        // Aquí podrías verificar el token JWT
-        // Por ahora simulo que es válido
         const response = {
             message: "Usuario autenticado correctamente",
             authenticated: true,
             user: {
-                id: 1,
-                username: "usuario_ejemplo",
-                role: "admin",
-                lastLogin: new Date().toISOString()
+                email: user.email,
+                name: user.name,
+                picture: user.picture
             },
-            tokenValid: true,
             status: "success"
         };
 
@@ -46,21 +53,97 @@ export async function authMe(req, res, next) {
     try {
         if (!req.session?.user) return res.json({ authenticated: false });
         const { email, name, picture } = req.session.user;
-        console.log("Usuario autenticado:", email);
-        console
-
         res.json({ authenticated: true, user: { email, name, picture } });
     } catch (err) {
         next(err);
     }
 }
+export function requireAuth(req, res, next) {
+    try {
+        // Verificar si existe sesión y usuario
+        if (!req.session?.user) {
+            customLogger.logAuth('warn', 'Intento de acceso sin sesión', {
+                event: 'UNAUTHORIZED_ACCESS_ATTEMPT',
+                ip: req.ip,
+                route: req.originalUrl,
+                userAgent: req.headers['user-agent']
+            });
+
+            return res.status(401).json({
+                message: "Acceso denegado. Debe iniciar sesión.",
+                authenticated: false,
+                status: "error",
+                code: "NO_SESSION"
+            });
+        }
+
+        const user = req.session.user;
+
+        // Verificar que el email siga autorizado
+        if (!cacheEmail.isAuthorized(user.email)) {
+            // Destruir sesión si ya no está autorizado
+            req.session.destroy();
+
+            customLogger.logSecurity('warn', 'Usuario ya no autorizado intentó acceder', {
+                event: 'UNAUTHORIZED_USER_ACCESS',
+                email: user.email,
+                ip: req.ip,
+                route: req.originalUrl,
+                severity: 'MEDIUM'
+            });
+
+            return res.status(401).json({
+                message: "Acceso denegado. Usuario ya no autorizado.",
+                authenticated: false,
+                status: "error",
+                code: "USER_NOT_AUTHORIZED"
+            });
+        }
+
+        // Agregar información del usuario al request para uso posterior
+        req.user = {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            picture: user.picture
+        };
+
+        // Continuar al siguiente middleware/ruta
+        next();
+
+    } catch (error) {
+        customLogger.logError('authentication', 'Error en middleware de autenticación', {
+            error: error.message,
+            stack: error.stack,
+            route: req.originalUrl,
+            ip: req.ip
+        });
+
+        res.status(500).json({
+            message: "Error interno de autenticación",
+            status: "error",
+            code: "AUTH_MIDDLEWARE_ERROR"
+        });
+    }
+}
 export async function googleAuth(req, res, next) {
     try {
+        const validation = AuthValidation.validateAuthRequest(GOOGLE_REDIRECT_URI, GOOGLE_CLIENT_ID);
+        if (!validation.valid) {
+            const error = new AuthenticationError(
+                'Configuración OAuth inválida',
+                'OAUTH_CONFIG_ERROR',
+                { errors: validation.errors }
+            );
+            return next(error);
+        }
         // 1. Generar un 'state' aleatorio para seguridad (previene CSRF)
-        const state = crypto.randomBytes(32).toString('hex');
+        const state = generateSecureState();
+        const stateExpiry = Date.now() + 15 * 60 * 1000; // 15 minutos
 
         // 2. Guardar el state en la sesión del usuario
         req.session.oauth_state = state;
+        req.session.oauth_state_expiry = stateExpiry;
 
         // 3. Crear la URL de autorización de Google
         const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -74,31 +157,61 @@ export async function googleAuth(req, res, next) {
             prompt: "consent",
         }).toString();
 
-        console.log("➡️ Redirigiendo a:", url.toString());
         // Asegura que la sesión se escriba antes del 302
-        req.session.save(() => {
+        req.session.save((err) => {
+            if (err) {
+                const error = new AuthenticationError(
+                    'Error guardando sesión',
+                    'SESSION_SAVE_ERROR',
+                    { originalError: err.message }
+                );
+                return next(error);
+            }
+
             res.redirect(302, url.toString());
         });
+
     } catch (error) {
-        console.error('Error en googleAuth:', error);
-        res.status(500).json({
-            message: "Error interno del servidor",
-            status: "error"
-        });
+        const authError = new AuthenticationError(
+            'Error interno en inicio de OAuth',
+            'OAUTH_INIT_ERROR',
+            { originalError: error.message }
+        );
+
+        // customLogger.logError('authentication', 'Error inesperado en googleAuth', authError.toLogObject());
+        next(authError);
     }
 }
 export async function googleCallback(req, res) {
+    let sessionCleanupNeeded = true
     try {
-        const { code, state } = req.query;
+        const { code, state: providedState } = req.query;
 
-        // 1. Validar que el state coincida (previene CSRF)
-        if (!state || state !== req.session.oauth_state) {
-            throw new Error("State inválido - posible ataque CSRF");
-        }
+        // Validar state antes que nada
+        const stateValidation = AuthValidation.validateOAuthState(req, providedState);
 
-        // 2. Validar que recibimos el código de autorización
-        if (!code) {
-            throw new Error("Código de autorización no encontrado");
+        if (!stateValidation.valid) {
+            const authError = new AuthenticationError(
+                'Validación OAuth fallida',
+                `OAUTH_VALIDATION_ERROR_${validation.type}`,
+                {
+                    errors: validation.errors,
+                    sessionId: req.session?.id,
+                    ip: req.ip
+                }
+            );
+
+            // Log de seguridad para intentos maliciosos
+            customLogger.logSecurity('warn', 'Validación OAuth fallida', {
+                event: 'OAUTH_VALIDATION_FAILED',
+                type: validation.type,
+                errors: validation.errors,
+                severity: validation.type.includes('STATE') ? 'HIGH' : 'MEDIUM',
+                ip: req.ip,
+                sessionId: req.session?.id
+            });
+
+            throw authError;
         }
 
         // 3. Canjear el código por tokens
@@ -110,10 +223,28 @@ export async function googleCallback(req, res) {
         const userInfo = await getUserInfo(tokenData.id_token);
 
         // 5. Validar que el correo esté autorizado
-        console.log("🔒 Validando correo autorizado:", userInfo.email);
-        if (!isEmailAuthorized(userInfo.email)) {
-            console.warn("❌ Correo no autorizado:", userInfo.email);
-            throw new Error(`El correo ${userInfo.email} no está autorizado para acceder al sistema`);
+        console.log("🔒 Validando autorización:", userInfo.email);
+        if (!cacheEmail.isAuthorized(userInfo.email)) {
+            const unauthorizedError = new AuthenticationError(
+                'Correo no autorizado para acceder al sistema',
+                'UNAUTHORIZED_EMAIL',
+                {
+                    email: userInfo.email,
+                    ip: req.ip,
+                    sessionId: req.session.id
+                }
+            );
+
+            customLogger.logSecurity('warn', 'Intento de acceso con correo no autorizado', {
+                event: 'UNAUTHORIZED_LOGIN_ATTEMPT',
+                email: userInfo.email,
+                ip: req.ip,
+                sessionId: req.session.id,
+                severity: 'HIGH',
+                category: 'SECURITY_VIOLATION'
+            });
+
+            throw unauthorizedError;
         }
 
         // 6. Guardar usuario en la sesión
@@ -127,6 +258,18 @@ export async function googleCallback(req, res) {
 
         // 7. Limpiar el state usado
         delete req.session.oauth_state;
+        delete req.session.oauth_state_expiry;
+        sessionCleanupNeeded = false;
+
+        await activeUsersCache.addUser(req.session.id, req.session.user);
+
+        customLogger.logAuth('info', 'Usuario autenticado exitosamente', {
+            event: 'SUCCESSFUL_LOGIN',
+            email: userInfo.email,
+            name: userInfo.name,
+            ip: req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0],
+            sessionId: req.session.id
+        });
 
         console.log("✅ Usuario autenticado y autorizado:", userInfo.email);
 
@@ -142,80 +285,39 @@ export async function googleCallback(req, res) {
 
         res.setHeader("Content-Security-Policy", csp);
         res.setHeader("Content-Type", "text/html; charset=utf-8");
-
-        // FRONTEND_ORIGIN debe coincidir con tu frontend
-        const FRONTEND_ORIGIN = "http://localhost:5173";
-
-        console.log("📤 Enviando confirmación al frontend:", FRONTEND_ORIGIN);
+        res.setHeader("X-Frame-Options", "DENY");
+        res.setHeader("X-Content-Type-Options", "nosniff");
 
         // 10. HTML con múltiples intentos de envío y cierre rápido
-        res.status(200).end(`<!doctype html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Autenticación exitosa</title>
-</head>
-<body>
-    <script nonce="${nonce}">
-    (function(){
-        const targetOrigin = ${JSON.stringify(FRONTEND_ORIGIN)};
-        const userData = {
-            type: "oauth_callback",
-            status: "success",
+        const callbackHTML = generateCallbackHTML({
+            status: 'success',
             user: {
-                email: ${JSON.stringify(userInfo.email)},
-                name: ${JSON.stringify(userInfo.name)},
-                picture: ${JSON.stringify(userInfo.picture)}
-            }
-        };
-        
-        let messageSent = false;
-        
-        function sendMessage() {
-            try {
-                if (window.opener && !window.opener.closed && !messageSent) {
-                    window.opener.postMessage(userData, targetOrigin);
-                    console.log('Mensaje enviado exitosamente');
-                    messageSent = true;
-                    // Cerrar inmediatamente después del envío exitoso
-                    setTimeout(function(){
-                        window.close();
-                    }, 100);
-                } else if (!window.opener || window.opener.closed) {
-                    console.error('No se pudo acceder al opener');
-                }
-            } catch (e) {
-                console.error('Error enviando mensaje:', e);
-            }
-        }
-        
-        // Intentar enviar inmediatamente
-        sendMessage();
-        
-        // Reintentar cada 100ms por hasta 3 segundos si no se envió
-        let attempts = 0;
-        const maxAttempts = 30;
-        const interval = setInterval(function(){
-            if (messageSent || attempts >= maxAttempts) {
-                clearInterval(interval);
-                if (!messageSent) {
-                    console.log('Timeout enviando mensaje, cerrando ventana');
-                    window.close();
-                }
-                return;
-            }
-            sendMessage();
-            attempts++;
-        }, 100);
-        
-    })();
-    </script>
-    <p>✅ Autenticación exitosa. Cerrando ventana...</p>
-</body>
-</html>`);
+                email: userInfo.email,
+                name: userInfo.name,
+                picture: userInfo.picture
+            },
+            origin: "*"
+        }, nonce);
+
+        res.status(200).end(callbackHTML);
 
     } catch (err) {
         console.error("❌ Error en googleCallback:", err);
+
+        // Log adicional para errores de autenticación usando tu sistema
+        if (err.message.includes('no está autorizado')) {
+            customLogger.logCustomError('authentication', 'Error de autorización durante login', {
+                event: 'AUTHORIZATION_ERROR',
+                error: err.message,
+                stack: err.stack,
+                ip: req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0],
+                userAgent: req.headers['user-agent'],
+                sessionId: req.session.id,
+                timestamp: new Date().toISOString(),
+                severity: 'HIGH',
+                category: 'SECURITY_ERROR'
+            });
+        }
 
         // Limpiar state en caso de error
         if (req.session.oauth_state) {
@@ -231,65 +333,16 @@ export async function googleCallback(req, res) {
 
         res.setHeader("Content-Security-Policy", csp);
         res.setHeader("Content-Type", "text/html; charset=utf-8");
-
-        const FRONTEND_ORIGIN = "http://localhost:5173";
+        res.setHeader("X-Frame-Options", "DENY");
+        res.setHeader("X-Content-Type-Options", "nosniff");
 
         console.log("📤 Notificando error al frontend");
-        res.status(400).end(`<!doctype html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Error de autenticación</title>
-</head>
-<body>
-    <script nonce="${nonce}">
-    (function(){
-        const targetOrigin = ${JSON.stringify(FRONTEND_ORIGIN)};
-        const errorData = {
-            type: "oauth_callback",
-            status: "error",
-            message: ${JSON.stringify(err.message)}
-        };
-        
-        let messageSent = false;
-        
-        function sendErrorMessage() {
-            try {
-                if (window.opener && !window.opener.closed && !messageSent) {
-                    window.opener.postMessage(errorData, targetOrigin);
-                    console.log('Mensaje de error enviado exitosamente');
-                    messageSent = true;
-                    setTimeout(function(){
-                        window.close();
-                    }, 100);
-                }
-            } catch (e) {
-                console.error('Error enviando mensaje de error:', e);
-            }
-        }
-        
-        // Intentar enviar inmediatamente
-        sendErrorMessage();
-        
-        // Reintentar si no se envió
-        let attempts = 0;
-        const maxAttempts = 20;
-        const interval = setInterval(function(){
-            if (messageSent || attempts >= maxAttempts) {
-                clearInterval(interval);
-                if (!messageSent) {
-                    window.close();
-                }
-                return;
-            }
-            sendErrorMessage();
-            attempts++;
-        }, 100);
-        
-    })();
-    </script>
-    <p>❌ Error en la autenticación: ${err.message}</p>
-</body>
-</html>`);
+        const errorHTML = generateCallbackHTML({
+            status: 'error',
+            message: err.message || 'Error interno de autenticación',
+            origin: "*"
+        }, nonce);
+
+        res.status(400).end(errorHTML);
     }
 }

@@ -8,6 +8,7 @@ export default {
     //uri base de datos
     MONGODB_PROCESO: process.env.MONGODB_PROCESO || "mongodb://localhost:27017/proceso",
     MONGODB_SISTEMA: process.env.MONGODB_SISTEMA || "mongodb://localhost:27017/sistema",
+    MONGODB_CATALOGOS: process.env.MONGODB_CATALOGOS || "mongodb://localhost:27017/catalogos",
 
     //Clientes ids
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,

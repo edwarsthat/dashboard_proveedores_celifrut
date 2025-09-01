@@ -4,8 +4,6 @@ import app from './server/app/app.js';
 import { DatabaseService } from './server/services/database.service.js';
 import shutdown from './server/utils/gracefullShutdown.js';
 import { initJobs } from './server/jobs/index.js';
-import { AppInitError } from './server/errors/index.js';
-import { ConfigError } from './server/errors/config.error.js';
 import errorLogger from './server/config/winston.config.js';
 
 const server = http.createServer(app);
@@ -17,15 +15,13 @@ console.log(`Servidor configurado para escuchar en el puerto ${PORT} y la direcc
     try {
 
         await DatabaseService.run();
-        // initJobs();
+        await initJobs();
 
-        // await shutdown.setupShutdownHandlers(server);
+        await shutdown.setupShutdownHandlers(server);
 
-        // server.listen(PORT, HOST, () => {
-        //     console.log(`El servidor está escuchando en el puerto ${PORT} y la dirección IP ${HOST}.`);
-        // });
-
-
+        server.listen(PORT, HOST, () => {
+            console.log(`El servidor está escuchando en el puerto ${PORT} y la dirección IP ${HOST}.`);
+        });
 
     } catch (err) {
         console.error('Error al iniciar el servidor:', err);

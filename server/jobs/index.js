@@ -1,8 +1,16 @@
 import cron from 'node-cron';
-import { getAuthorizedEmails } from './obtenerDataBD.js';
+import { getAuthorizedEmails, getTiposFruta } from './obtenerDataBD.js';
 
-export function initJobs() {
-    cron.schedule('26 16 * * *', async () => {
+export async function initJobs() {
+    await getTiposFruta();
+    await getAuthorizedEmails();
+
+    cron.schedule('05 9 * * *', async () => {
         await getAuthorizedEmails();
     });
+
+    cron.schedule("*/45 * * * *", async () => {
+        await getTiposFruta();
+    });
+
 }

@@ -10,17 +10,17 @@ export async function exchangeCodeForToken(code) {
         grant_type: "authorization_code",
     });
 
-    const resp = await fetch("https://oauth2.googleapis.com/token", {
+    const response = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body
     });
-    const json = await resp.json();
-    if (!resp.ok) {
-        console.error("Token error:", json);
-        throw new Error("No se pudo canjear el code");
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Token exchange failed: ${errorData.error || response.statusText}`);
     }
-    return json; // { access_token, id_token, refresh_token?, expires_in, ... }
+
+    return await response.json();
 }
 export async function getUserInfo(idToken) {
     try {
@@ -28,7 +28,7 @@ export async function getUserInfo(idToken) {
         const payload = JSON.parse(
             Buffer.from(idToken.split('.')[1], 'base64').toString()
         );
-        
+
         // Verificar que el token no haya expirado
         if (payload.exp * 1000 < Date.now()) {
             throw new Error('Token expirado');
