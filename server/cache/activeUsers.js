@@ -40,7 +40,6 @@ class ActiveUsersCache {
             'proceso'
         )
 
-        console.log(precios.length)
         // Guardar usuario
         this.users.set(sessionId, {
             ...userData,

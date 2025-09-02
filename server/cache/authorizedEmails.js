@@ -1,35 +1,42 @@
+// server/cache/authorizedEmails.js
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// __dirname en ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export class EmailCache {
     constructor() {
-        this.constructEmails();
+        this.authorizedEmails = new Set();
         this.lastUpdate = null;
         this.isUpdating = false;
 
+        // Bootstrap: carga inicial desde disco
+        const privileged = EmailCache.loadEmailsFromData();
+        this.#addList(privileged);
+        this.lastUpdate = new Date();
+        console.log(`🚀 Cache inicializado con ${this.authorizedEmails.size} correos.`);
     }
 
-    // Validación de email
-    isValidEmail(email) {
-        if (!email || typeof email !== 'string') return false;
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email.trim());
-    }
-
-    // Métodos principales
-    setEmails(emailList) {
+    // Mantén setEmails como arrow para no perder el this si lo pasas como callback
+    setEmails = (emailList = []) => {
+        // Si quieres reemplazar completamente el cache, descomenta:
         // this.authorizedEmails.clear();
-        emailList.forEach(email => {
-            if (email && this.isValidEmail(email)) {
-                this.authorizedEmails.add(email.toLowerCase().trim());
-            }
-        });
+
+        // Mezcla: primero los privilegiados del JSON, luego los que vengan de BD
+        const privileged = EmailCache.loadEmailsFromData();
+        this.#addList(privileged);
+        this.#addList(emailList);
+
         this.lastUpdate = new Date();
         console.log(`✅ Cache actualizado: ${this.authorizedEmails.size} emails autorizados`);
-    }
+    };
 
     isAuthorized(email) {
+        console.log(email)
+        console.log(this.authorizedEmails)
         if (!email || typeof email !== 'string') return false;
         return this.authorizedEmails.has(email.toLowerCase().trim());
     }
@@ -39,9 +46,9 @@ export class EmailCache {
             totalEmails: this.authorizedEmails.size,
             lastUpdate: this.lastUpdate,
             isUpdating: this.isUpdating,
-            timeSinceUpdate: this.lastUpdate ?
-                Math.floor((Date.now() - this.lastUpdate.getTime()) / 1000 / 60) + ' minutos' :
-                'Nunca'
+            timeSinceUpdate: this.lastUpdate
+                ? Math.floor((Date.now() - this.lastUpdate.getTime()) / 1000 / 60) + ' minutos'
+                : 'Nunca',
         };
     }
 
@@ -55,51 +62,45 @@ export class EmailCache {
         console.log('🗑️  Cache de emails limpiado');
     }
 
-    // Estado interno
     setUpdating(status) {
         this.isUpdating = status;
     }
 
-    constructEmails() {
-        try {
-            this.loadEmailsFromData
-            this.authorizedEmails = new Set(configData.privilegedEmails || []);
-        } catch (error) {
-            console.warn('⚠️  No se pudo cargar configuración, usando emails por defecto');
-            this.authorizedEmails = new Set([
-                'admin@celifrut.com',
-                'gerencia@celifrut.com',
-                'sistemacelifrut@gmail.com'
-            ]);
-            this.fallbackEmails = ['admin@celifrut.com'];
+    // --- Helpers privados ---
+    #addList(list = []) {
+        for (const email of list) {
+            if (this.isValidEmail(email)) {
+                this.authorizedEmails.add(String(email).toLowerCase().trim());
+            }
         }
+        console.log(this.authorizedEmails)
     }
-    loadEmailsFromData() {
-        try {
-            const configPath = path.join(process.cwd(), 'server', 'data', 'authorizedEmails.json');
-            const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
-
-        } catch (error) {
-            console.warn('⚠️  No se pudo cargar configuración, usando emails por defecto');
-            this.authorizedEmails = new Set([
-                'admin@celifrut.com',
-                'gerencia@celifrut.com',
-                'sistemacelifrut@gmail.com'
-            ]);
-        }
+    isValidEmail(email) {
+        if (!email || typeof email !== 'string') return false;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email.trim());
     }
+
     static loadEmailsFromData() {
         try {
-            const configPath = path.join(process.cwd(), 'server', 'data', 'authorizedEmails.json');
-            const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-            return configData || []
+            // Ruta robusta: relative al archivo actual
+            const configPath = path.resolve(__dirname, '../data/authorizedEmails.json');
+            const raw = fs.readFileSync(configPath, 'utf8');
+            const parsed = JSON.parse(raw);
+
+            // Soporta formatos: ["a@b.com"] o { "emails": [...] }
+            if (Array.isArray(parsed)) return parsed;
+            if (parsed && Array.isArray(parsed.emails)) return parsed.emails;
+
+            return [];
         } catch (error) {
+            // Fallback sensato
             return [
                 'admin@celifrut.com',
                 'gerencia@celifrut.com',
-                'sistemacelifrut@gmail.com'
-            ]
+                'sistemacelifrut@gmail.com',
+            ];
         }
     }
 }

@@ -235,14 +235,7 @@ export async function googleCallback(req, res) {
                 }
             );
 
-            customLogger.logSecurity('warn', 'Intento de acceso con correo no autorizado', {
-                event: 'UNAUTHORIZED_LOGIN_ATTEMPT',
-                email: userInfo.email,
-                ip: req.ip,
-                sessionId: req.session.id,
-                severity: 'HIGH',
-                category: 'SECURITY_VIOLATION'
-            });
+
 
             throw unauthorizedError;
         }

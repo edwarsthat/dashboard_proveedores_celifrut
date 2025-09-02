@@ -1,3 +1,5 @@
+import { BaseError } from "./index.js";
+
 export class DashboardError extends BaseError {
     constructor({ message = 'Error de dashboard', meta = {}, cause } = {}) {
         super(message, 'service', 500, meta, 'SERVICE.DASHBOARD', false, cause);

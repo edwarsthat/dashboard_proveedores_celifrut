@@ -9,12 +9,12 @@ class tipoFrutasCache {
     async run() {
         try {
             const data = await DatabaseService.findElements(
-                "tipoFrutas",
+                "tipofrutas",
                 {},
                 'catalogos',
             )
 
-            this.setTiposFruta(data);
+            this.setTiposFruta(data)
         } catch (error) {
             console.error('❌ Error en getTiposFruta:', error);
 
