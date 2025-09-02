@@ -64,6 +64,16 @@ class ActiveUsersCache {
         return this.users.get(sessionId);
     }
 
+    async logout(sessionId) {
+        const user = this.users.get(sessionId);
+        if (user) {
+            this.users.delete(sessionId);
+            this.sessions.delete(user.id);
+            this.emailToUser.delete(user.email);
+            console.log(`👤 Usuario eliminado del cache: ${user.email}`);
+        }
+    }
+
 }
 
 const activeUsersCache = new ActiveUsersCache();

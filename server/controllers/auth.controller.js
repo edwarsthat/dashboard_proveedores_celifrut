@@ -1,13 +1,13 @@
 import crypto from "crypto";
 import config from "../config/environment.js"
-import { exchangeCodeForToken, getUserInfo } from "../services/auth.service.js";
+import { getUserInfo, getMicrosoftUserInfo, exchangeCodeForTokenMicrosoft, exchangeCodeForToken } from "../services/auth.service.js";
 import cacheEmail from "../cache/authorizedEmails.js";
 import customLogger from "../config/winston.config.js";
 import { AuthValidation } from "../validations/authentication.validation.js";
 import { generateCallbackHTML, generateSecureState } from "../utils/authetication.js";
 import { AuthenticationError } from "../errors/Auth.error.js";
 import activeUsersCache from "../cache/activeUsers.js";
-const { GOOGLE_REDIRECT_URI, GOOGLE_CLIENT_ID } = config;
+const { GOOGLE_REDIRECT_URI, GOOGLE_CLIENT_ID, MICROSOFT_REDIRECT_URI, MICROSOFT_CLIENT_ID, MICROSOFT_TENANT_ID } = config;
 
 
 export async function authStatus(req, res, next) {
@@ -337,5 +337,241 @@ export async function googleCallback(req, res) {
         }, nonce);
 
         res.status(400).end(errorHTML);
+    }
+}
+export function microsoftAuth(req, res) {
+    try {
+
+        const validation = AuthValidation.validateMicrosoftAuthRequest(MICROSOFT_REDIRECT_URI, MICROSOFT_CLIENT_ID, MICROSOFT_TENANT_ID);
+        if (!validation.valid) {
+            const error = new AuthenticationError(
+                'Configuración OAuth inválida',
+                'OAUTH_CONFIG_ERROR',
+                { errors: validation.errors }
+            );
+            return next(error);
+        }
+
+        const state = generateSecureState();
+        const stateExpiry = Date.now() + 15 * 60 * 1000; // 15 minutos
+
+        req.session.oauth_state = state;
+        req.session.oauth_state_expiry = stateExpiry;
+
+        // 3. Crear la URL de autorización de Google
+        const url = new URL(`https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize`);
+        url.search = new URLSearchParams({
+            client_id: MICROSOFT_CLIENT_ID,
+            redirect_uri: MICROSOFT_REDIRECT_URI,
+            response_type: "code",
+            scope: "openid email profile User.Read",
+            state,
+            response_mode: "query",
+            prompt: "consent"
+        }).toString();
+
+        // 4. Asegurar que la sesión se escriba antes del redirect
+        req.session.save((err) => {
+            if (err) {
+                const error = new AuthenticationError(
+                    'Error guardando sesión',
+                    'SESSION_SAVE_ERROR',
+                    { originalError: err.message }
+                );
+                return next(error);
+            }
+
+            res.redirect(302, url.toString());
+        });
+
+
+    } catch (error) {
+        const authError = new AuthenticationError(
+            'Error interno en inicio de OAuth',
+            'OAUTH_INIT_ERROR',
+            { originalError: error.message }
+        );
+
+        // customLogger.logError('authentication', 'Error inesperado en googleAuth', authError.toLogObject());
+        next(authError);
+    }
+}
+export async function microsoftCallback(req, res) {
+    let sessionCleanupNeeded = true;
+    try {
+        const { code, state: providedState } = req.query;
+
+        // 1. Validar state antes que nada
+        const stateValidation = AuthValidation.validateOAuthState(req, providedState);
+
+        if (!stateValidation.valid) {
+            const authError = new AuthenticationError(
+                'Validación OAuth fallida',
+                `OAUTH_VALIDATION_ERROR_${stateValidation.type}`,
+                {
+                    errors: stateValidation.errors,
+                    sessionId: req.session?.id,
+                    ip: req.ip
+                }
+            );
+
+            // Log de seguridad para intentos maliciosos
+            customLogger.logSecurity('warn', 'Validación OAuth Microsoft fallida', {
+                event: 'MICROSOFT_OAUTH_VALIDATION_FAILED',
+                type: stateValidation.type,
+                errors: stateValidation.errors,
+                severity: stateValidation.type.includes('STATE') ? 'HIGH' : 'MEDIUM',
+                ip: req.ip,
+                sessionId: req.session?.id
+            });
+
+            throw authError;
+        }
+
+        // 2. Canjear el código por tokens (necesitarás una función específica para Microsoft)
+        console.log("🔄 Canjeando código Microsoft por token...");
+        const tokenData = await exchangeCodeForTokenMicrosoft(code);
+
+        // 3. Obtener información del usuario de Microsoft
+        console.log("👤 Obteniendo información del usuario Microsoft...");
+        const userInfo = await getMicrosoftUserInfo(tokenData.access_token);
+
+        // 4. Validar que el correo esté autorizado
+        console.log("🔒 Validando autorización:", userInfo.mail || userInfo.userPrincipalName);
+        const userEmail = userInfo.mail || userInfo.userPrincipalName;
+
+        if (!cacheEmail.isAuthorized(userEmail)) {
+            const unauthorizedError = new AuthenticationError(
+                'Correo no autorizado para acceder al sistema',
+                'UNAUTHORIZED_EMAIL',
+                {
+                    email: userEmail,
+                    ip: req.ip,
+                    sessionId: req.session.id
+                }
+            );
+
+            customLogger.logSecurity('warn', 'Usuario Microsoft no autorizado intentó acceder', {
+                event: 'MICROSOFT_UNAUTHORIZED_LOGIN_ATTEMPT',
+                email: userEmail,
+                ip: req.ip,
+                severity: 'HIGH'
+            });
+
+            throw unauthorizedError;
+        }
+
+        // 5. Guardar usuario en la sesión
+        req.session.user = {
+            id: userInfo.id,
+            email: userEmail,
+            name: userInfo.displayName,
+            picture: userInfo.photo || null, // Microsoft puede no tener foto
+            email_verified: true // Microsoft emails are typically verified
+        };
+
+        // 6. Limpiar el state usado
+        delete req.session.oauth_state;
+        delete req.session.oauth_state_expiry;
+        sessionCleanupNeeded = false;
+
+        console.log("🔄 Canjeando código Microsoft por token...", userEmail );
+        await activeUsersCache.addUser(req.session.id, req.session.user);
+
+        customLogger.logAuth('info', 'Usuario Microsoft autenticado exitosamente', {
+            event: 'SUCCESSFUL_MICROSOFT_LOGIN',
+            email: userEmail,
+            name: userInfo.displayName,
+            ip: req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0],
+            sessionId: req.session.id
+        });
+
+        console.log("✅ Usuario Microsoft autenticado y autorizado:", userEmail);
+
+        // 7. Nonce seguro
+        const nonce = crypto.randomBytes(16)
+            .toString("base64")
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/g, "");
+
+        // 8. CSP headers
+        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'self' 'nonce-${nonce}';`;
+
+        res.setHeader("Content-Security-Policy", csp);
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("X-Frame-Options", "DENY");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+
+        // 9. HTML de respuesta exitosa
+        const callbackHTML = generateCallbackHTML({
+            status: 'success',
+            user: {
+                email: userEmail,
+                name: userInfo.displayName,
+                picture: userInfo.photo || null
+            },
+            origin: "*"
+        }, nonce);
+
+        res.status(200).end(callbackHTML);
+
+    } catch (err) {
+        console.error("❌ Error en microsoftCallback:", err);
+
+        // Log adicional para errores de autenticación
+        if (err.message.includes('no está autorizado')) {
+            customLogger.logCustomError('authentication', 'Error de autorización Microsoft durante login', {
+                event: 'MICROSOFT_AUTHORIZATION_ERROR',
+                error: err.message,
+                stack: err.stack,
+                ip: req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0],
+                userAgent: req.headers['user-agent'],
+                sessionId: req.session.id,
+                timestamp: new Date().toISOString(),
+                severity: 'HIGH',
+                category: 'SECURITY_ERROR'
+            });
+        }
+
+        // Limpiar state en caso de error
+        if (sessionCleanupNeeded && req.session.oauth_state) {
+            delete req.session.oauth_state;
+            delete req.session.oauth_state_expiry;
+        }
+
+        const nonce = crypto.randomBytes(16)
+            .toString("base64")
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/g, "");
+
+        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'self' 'nonce-${nonce}';`;
+
+        res.setHeader("Content-Security-Policy", csp);
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("X-Frame-Options", "DENY");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+
+        console.log("📤 Notificando error Microsoft al frontend");
+        const errorHTML = generateCallbackHTML({
+            status: 'error',
+            message: err.message || 'Error interno de autenticación Microsoft',
+            origin: "*"
+        }, nonce);
+
+        res.status(400).end(errorHTML);
+    }
+}
+export async function logout(req, res, next) {
+    try {
+        console.log("👤 Cierre de sesión para el usuario:", req.session.user.email);
+        console.log("Session ID:", req.session.id);
+        activeUsersCache.logout(req.session.id);
+        req.session.destroy();
+        res.json({ message: "Cierre de sesión exitoso" });
+    } catch (error) {
+        console.error("❌ Error en logout:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
     }
 }

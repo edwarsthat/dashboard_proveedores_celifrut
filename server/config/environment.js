@@ -13,6 +13,11 @@ export default {
     //Clientes ids
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    
+    MICROSOFT_CLIENT_ID: process.env.MICROSOFT_CLIENT_ID,
+    MICROSOFT_CLIENT_SECRET: process.env.MICROSOFT_CLIENT_SECRET, // <- FALTA ESTO
+    MICROSOFT_TENANT_ID: process.env.MICROSOFT_TENANT_ID,
+    MICROSOFT_REDIRECT_URI: process.env.MICROSOFT_REDIRECT_URI,
 
     //sesion secret
     SESSION_SECRET: process.env.SESSION_SECRET,
