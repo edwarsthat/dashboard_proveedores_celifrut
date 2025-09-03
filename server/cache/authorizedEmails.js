@@ -35,8 +35,6 @@ export class EmailCache {
     };
 
     isAuthorized(email) {
-        console.log(email)
-        console.log(this.authorizedEmails)
         if (!email || typeof email !== 'string') return false;
         return this.authorizedEmails.has(email.toLowerCase().trim());
     }
@@ -73,7 +71,6 @@ export class EmailCache {
                 this.authorizedEmails.add(String(email).toLowerCase().trim());
             }
         }
-        console.log(this.authorizedEmails)
     }
 
     isValidEmail(email) {

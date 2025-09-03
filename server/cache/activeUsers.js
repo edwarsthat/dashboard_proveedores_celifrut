@@ -7,6 +7,38 @@ class ActiveUsersCache {
         this.sessions = new Map();
         this.emailToUser = new Map();
 
+        // Configuración de limpieza
+        this.INACTIVE_TIMEOUT = 30 * 60 * 1000; // 30 minutos
+        this.CLEANUP_INTERVAL = 5 * 60 * 1000;  // 5 minutos
+
+        // Iniciar limpieza automática
+        this.startCleanupProcess();
+
+    }
+
+    startCleanupProcess() {
+        setInterval(() => {
+            this.cleanupInactiveUsers();
+        }, this.CLEANUP_INTERVAL);
+    }
+    cleanupInactiveUsers() {
+        const now = new Date();
+        let removedCount = 0;
+
+        for (const [sessionId, user] of this.users) {
+            console.log("probando eliminar inactivo", user.lastActivity)
+
+            const timeSinceLastActivity = now - user.lastActivity;
+            if (timeSinceLastActivity > this.INACTIVE_TIMEOUT) {
+                this.logout(sessionId);
+                removedCount++;
+                console.log(`🧹 Usuario inactivo eliminado: ${user.email}`);
+            }
+        }
+
+        if (removedCount > 0) {
+            console.log(`🧹 Limpieza completada: ${removedCount} usuarios eliminados`);
+        }
     }
 
     async addUser(sessionId, userData) {
@@ -26,14 +58,14 @@ class ActiveUsersCache {
         const predioIds = Array.isArray(data)
             ? data
                 .map(d => d?._id?.toString())
-                .filter(Boolean) 
+                .filter(Boolean)
             : [];
 
         if (predioIds.length === 0) {
             // devuelve vacío o maneja el caso como prefieras
             return [];
         }
-        
+
         const precios = await DatabaseService.findElements(
             "precios",
             { predios: { $in: predioIds } },
@@ -55,16 +87,13 @@ class ActiveUsersCache {
 
         console.log(`👤 Usuario agregado al cache: ${userData.email}`);
     }
-
     async getAllUsers() {
         return Array.from(this.users.values());
     }
-
     async getUser(sessionId) {
         return this.users.get(sessionId);
     }
-
-    async logout(sessionId) {
+    logout(sessionId) {
         const user = this.users.get(sessionId);
         if (user) {
             this.users.delete(sessionId);
