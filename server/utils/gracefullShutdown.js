@@ -56,7 +56,7 @@ class Shutdown {
             shutdown('uncaughtException');
         });
 
-        process.on('unhandledRejection', (reason, promise) => {
+        process.on('unhandledRejection', (reason) => {
             console.error('💥 Promise rechazada sin manejar:', reason);
             shutdown('unhandledRejection');
         });

@@ -94,8 +94,9 @@ export class EmailCache {
             if (parsed && Array.isArray(parsed.emails)) return parsed.emails;
 
             return [];
-        } catch (error) {
+        } catch (err) {
             // Fallback sensato
+            console.error('❌ Error cargando authorizedEmails.json, usando fallback hardcoded.', err);
             return [
                 'admin@celifrut.com',
                 'gerencia@celifrut.com',

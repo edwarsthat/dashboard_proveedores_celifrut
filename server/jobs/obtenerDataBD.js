@@ -1,5 +1,6 @@
 import cacheEmail from "../cache/authorizedEmails.js";
 import tipoFrutasCacheInstance from "../cache/tipoFrutaCache.js";
+import customLogger from "../config/winston.config.js";
 import { JobError } from "../errors/JobError.js";
 import { DatabaseService } from "../services/database.service.js";
 
@@ -44,7 +45,7 @@ export async function getAuthorizedEmails() {
         });
 
         // Loggear el error correctamente
-        errorLogger.logCustomError('jobs', jobError.message, {
+        customLogger.logCustomError('jobs', jobError.message, {
             collection: 'proveedors',
             task: 'getAuthorizedEmails',
             originalError: err.message,
@@ -53,7 +54,7 @@ export async function getAuthorizedEmails() {
         });
 
         // Flush logs antes de salir
-        await errorLogger.flushAll();
+        await customLogger.flushAll();
 
         // Re-lanzar el error o manejarlo según tu lógica de negocio
         throw jobError;

@@ -1,4 +1,5 @@
 import tipoFrutasCacheInstance from "../../cache/tipoFrutaCache.js";
+import customLogger from "../../config/winston.config.js";
 import { DashboardError } from "../../errors/Services.error.js";
 
 export async function ponerCalidadesPrecios(precios) {
@@ -28,7 +29,7 @@ export async function ponerCalidadesPrecios(precios) {
         });
 
         // Loggear el error correctamente
-        errorLogger.logCustomError('database', serviceError.message, {
+        customLogger.logCustomError('database', serviceError.message, {
             collection: 'services precios',
             task: 'ponerCalidadesPrecios',
             originalError: error.message,
@@ -37,7 +38,7 @@ export async function ponerCalidadesPrecios(precios) {
         });
 
         // Flush logs antes de salir
-        await errorLogger.flushAll();
+        await customLogger.flushAll();
 
         // Re-lanzar el error o manejarlo según tu lógica de negocio
         throw serviceError;

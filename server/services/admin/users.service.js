@@ -5,6 +5,6 @@ export const getAllUsers = async () => {
         const users = await activeUsersCache.getAllUsers();
         return users;
     } catch (error) {
-        throw new Error("Error al obtener usuarios");
+        throw new Error("Error al obtener usuarios", error.message);
     }
 };

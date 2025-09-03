@@ -183,7 +183,6 @@ export async function googleAuth(req, res, next) {
     }
 }
 export async function googleCallback(req, res) {
-    let sessionCleanupNeeded = true
     try {
         const { code, state: providedState } = req.query;
 
@@ -193,9 +192,9 @@ export async function googleCallback(req, res) {
         if (!stateValidation.valid) {
             const authError = new AuthenticationError(
                 'Validación OAuth fallida',
-                `OAUTH_VALIDATION_ERROR_${validation.type}`,
+                `OAUTH_VALIDATION_ERROR_${stateValidation.type}`,
                 {
-                    errors: validation.errors,
+                    errors: stateValidation.errors,
                     sessionId: req.session?.id,
                     ip: req.ip
                 }
@@ -204,9 +203,9 @@ export async function googleCallback(req, res) {
             // Log de seguridad para intentos maliciosos
             customLogger.logSecurity('warn', 'Validación OAuth fallida', {
                 event: 'OAUTH_VALIDATION_FAILED',
-                type: validation.type,
-                errors: validation.errors,
-                severity: validation.type.includes('STATE') ? 'HIGH' : 'MEDIUM',
+                type: stateValidation.type,
+                errors: stateValidation.errors,
+                severity: stateValidation.type.includes('STATE') ? 'HIGH' : 'MEDIUM',
                 ip: req.ip,
                 sessionId: req.session?.id
             });
@@ -252,7 +251,6 @@ export async function googleCallback(req, res) {
         // 7. Limpiar el state usado
         delete req.session.oauth_state;
         delete req.session.oauth_state_expiry;
-        sessionCleanupNeeded = false;
 
         await activeUsersCache.addUser(req.session.id, req.session.user);
 
@@ -339,7 +337,7 @@ export async function googleCallback(req, res) {
         res.status(400).end(errorHTML);
     }
 }
-export function microsoftAuth(req, res) {
+export function microsoftAuth(req, res, next) {
     try {
 
         const validation = AuthValidation.validateMicrosoftAuthRequest(MICROSOFT_REDIRECT_URI, MICROSOFT_CLIENT_ID, MICROSOFT_TENANT_ID);
@@ -563,7 +561,7 @@ export async function microsoftCallback(req, res) {
         res.status(400).end(errorHTML);
     }
 }
-export async function logout(req, res, next) {
+export async function logout(req, res) {
     try {
         console.log("👤 Cierre de sesión para el usuario:", req.session.user.email);
         console.log("Session ID:", req.session.id);

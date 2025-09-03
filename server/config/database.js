@@ -123,7 +123,7 @@ class DatabaseManager {
         switch (dbType) {
             case "proceso":
                 if (!this.procesoClient) {
-                    throw new DatabaseError({
+                    throw new DatabaseConnectionError({
                         message: 'Cliente de base de datos proceso no inicializado',
                         meta: { dbType, phase: 'getDatabase' }
                     });
@@ -131,7 +131,7 @@ class DatabaseManager {
                 return this.procesoClient;
             case "sistema":
                 if (!this.sistemaClient) {
-                    throw new DatabaseError({
+                    throw new DatabaseConnectionError({
                         message: 'Cliente de base de datos sistema no inicializado',
                         meta: { dbType, phase: 'getDatabase' }
                     });
@@ -139,14 +139,14 @@ class DatabaseManager {
                 return this.sistemaClient;
             case "catalogos":
                 if (!this.catalogosClient) {
-                    throw new DatabaseError({
+                    throw new DatabaseConnectionError({
                         message: 'Cliente de base de datos catalogos no inicializado',
                         meta: { dbType, phase: 'getDatabase' }
                     });
                 }
                 return this.catalogosClient;
             default:
-                throw new DatabaseError({
+                throw new DatabaseConnectionError({
                     message: `Tipo de base de datos no válido: ${dbType}`,
                     meta: { dbType, validTypes: ['proceso', 'sistema', 'catalogos'] }
                 });
