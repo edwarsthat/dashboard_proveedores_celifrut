@@ -19,8 +19,9 @@ app.use(helmet({
                 "data:",
                 "blob:",
                 "lh3.googleusercontent.com",
-                "*.googleusercontent.com"
-                // si usarás blob/fetch a MS Graph, también blob: y permite connect-src a graph.microsoft.com
+                "*.googleusercontent.com",
+                "ui-avatars.com" 
+                
             ],
             "connect-src": ["'self'", "graph.microsoft.com"] // si harás fetch de la foto de MS
         }
