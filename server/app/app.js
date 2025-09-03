@@ -10,7 +10,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distPath = path.join(__dirname, "..", "..", "..", "front-end-dasboard-clientes-celifrut", "dist");
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+            "img-src": [
+                "'self'",
+                "data:",
+                "blob:",
+                "lh3.googleusercontent.com",
+                "*.googleusercontent.com"
+                // si usarás blob/fetch a MS Graph, también blob: y permite connect-src a graph.microsoft.com
+            ],
+            "connect-src": ["'self'", "graph.microsoft.com"] // si harás fetch de la foto de MS
+        }
+    }
+}));
 app.use(cors({
     origin: 'http://localhost:5173', // Origen específico en lugar de '*'
     credentials: true, // Permitir cookies
