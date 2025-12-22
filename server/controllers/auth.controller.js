@@ -298,7 +298,7 @@ export async function googleCallback(req, res) {
                 const errorHTML = generateCallbackHTML({
                     status: 'error',
                     message: error.message,
-                    origin: "http://localhost:5173"
+                    origin: process.env.FRONT_URL
                 }, nonce);
 
                 return res.status(500).end(errorHTML);
@@ -330,7 +330,7 @@ export async function googleCallback(req, res) {
                 name: userInfo.name,
                 picture: userInfo.picture
             },
-            origin: "http://localhost:5173" // Cambiar al origen correcto del frontend JP
+            origin: process.env.FRONT_URL // Cambiar al origen correcto del frontend JP
         }, nonce);
 
         res.status(200).end(callbackHTML);
@@ -377,7 +377,7 @@ export async function googleCallback(req, res) {
         const errorHTML = generateCallbackHTML({
             status: 'error',
             message: err.message || 'Error interno de autenticación',
-            origin: "http://localhost:5173"
+            origin: process.env.FRONT_URL
         }, nonce);
 
         res.status(400).end(errorHTML);
@@ -551,7 +551,7 @@ export async function microsoftCallback(req, res) {
         const errorHTML = generateCallbackHTML({
             status: 'error',
             message: error.message,
-            origin: "http://localhost:5173"
+            origin: process.env.FRONT_URL
         }, nonce);
 
         return res.status(500).end(errorHTML);
@@ -591,7 +591,7 @@ export async function microsoftCallback(req, res) {
                 email: userEmail,
                 name: userInfo.displayName,
                 picture: userInfo.photo || null
-            },origin: "http://localhost:5173" // Cambiar al origen correcto del frontend JP
+            },origin: process.env.FRONT_URL // Cambiar al origen correcto del frontend JP
         }, nonce);
 
         res.status(200).end(callbackHTML);
@@ -638,7 +638,7 @@ export async function microsoftCallback(req, res) {
         const errorHTML = generateCallbackHTML({
             status: 'error',
             message: err.message || 'Error interno de autenticación Microsoft',
-            origin: "http://localhost:5173" // Cambiar al origen correcto del frontend JP
+            origin: process.env.FRONT_URL // Cambiar al origen correcto del frontend JP
         }, nonce);
 
         res.status(400).end(errorHTML);
