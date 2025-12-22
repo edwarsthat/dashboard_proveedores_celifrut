@@ -7,7 +7,7 @@ export class DatabaseService {
         try {
             await dbManager.connectProceso();
             await dbManager.connectSistema();
-            await dbManager.connectCatalogos();
+            //await dbManager.connectCatalogos(); no se usa.Jp
             console.log("🚀 Servicios de base de datos inicializados");
         } catch (error) {
             console.error("❌ Error inicializando servicios de base de datos:", error);
@@ -71,9 +71,9 @@ export class DatabaseService {
                 case 'sistema':
                     db = dbInstance.db('sistema');
                     break;
-                case 'catalogos':
-                    db = dbInstance.db('catalogos');
-                    break;
+                // case 'catalogos':
+                //     db = dbInstance.db('catalogos');  no se usa catalogos.Jp
+                //     break;
                 default:
                     throw new DatabaseError({
                         message: `Tipo de base de datos no válido: ${dbType}`,
