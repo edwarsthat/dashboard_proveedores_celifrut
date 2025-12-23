@@ -183,6 +183,8 @@ export async function googleAuth(req, res, next) {
     }
 }
 export async function googleCallback(req, res) {
+    let sessionCleanupNeeded = true;
+
     try {
         const { code, state: providedState } = req.query;
 
@@ -234,7 +236,12 @@ export async function googleCallback(req, res) {
                 }
             );
 
-
+            customLogger.logSecurity('warn', 'Usuario Google no autorizado intentó acceder', {
+                event: 'GOOGLE_UNAUTHORIZED_LOGIN_ATTEMPT',
+                email: userInfo.email,
+                ip: req.ip,
+                severity: 'HIGH'
+            });
 
             throw unauthorizedError;
         }
@@ -251,11 +258,12 @@ export async function googleCallback(req, res) {
         // 7. Limpiar el state usado
         delete req.session.oauth_state;
         delete req.session.oauth_state_expiry;
+        sessionCleanupNeeded = false;
 
         await activeUsersCache.addUser(req.session.id, req.session.user);
 
         customLogger.logAuth('info', 'Usuario autenticado exitosamente', {
-            event: 'SUCCESSFUL_LOGIN',
+            event: 'SUCCESSFUL_GOOGLE_LOGIN',
             email: userInfo.email,
             name: userInfo.name,
             ip: req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0],
@@ -264,22 +272,57 @@ export async function googleCallback(req, res) {
 
         console.log("✅ Usuario autenticado y autorizado:", userInfo.email);
 
-        // 8. Nonce seguro
+        // 8. ⚠️ CRÍTICO: Guardar la sesión ANTES de enviar la respuesta Jp
+        req.session.save((err) => {
+            if (err) {
+                console.error("❌ Error guardando sesión:", err);
+
+                const error = new AuthenticationError(
+                    'Error guardando sesión después de autenticación',
+                    'SESSION_SAVE_ERROR',
+                    { originalError: err.message }
+                );
+
+                const nonce = crypto.randomBytes(16)
+                    .toString("base64")
+                    .replace(/\+/g, "-")
+                    .replace(/\//g, "_")
+                    .replace(/=+$/g, "");
+
+                const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';`;
+                res.setHeader("Content-Security-Policy", csp);
+                res.setHeader("Content-Type", "text/html; charset=utf-8");
+                res.setHeader("X-Frame-Options", "DENY");
+                res.setHeader("X-Content-Type-Options", "nosniff");
+
+                const errorHTML = generateCallbackHTML({
+                    status: 'error',
+                    message: error.message,
+                    origin: process.env.FRONT_URL
+                }, nonce);
+
+                return res.status(500).end(errorHTML);
+            }
+
+            console.log("💾 Sesión guardada exitosamente - Session ID:", req.session.id);
+
+        // 9. Nonce seguro
         const nonce = crypto.randomBytes(16)
             .toString("base64")
             .replace(/\+/g, "-")
             .replace(/\//g, "_")
             .replace(/=+$/g, "");
 
-        // 9. CSP
-        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'self' 'nonce-${nonce}';`;
+        // 10. CSP
+        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';`;
 
         res.setHeader("Content-Security-Policy", csp);
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.setHeader("X-Frame-Options", "DENY");
         res.setHeader("X-Content-Type-Options", "nosniff");
 
-        // 10. HTML con múltiples intentos de envío y cierre rápido
+        // 11. HTML con múltiples intentos de envío y cierre rápido
+        console.log("📤 Enviando HTML de callback exitoso al popup");
         const callbackHTML = generateCallbackHTML({
             status: 'success',
             user: {
@@ -287,23 +330,24 @@ export async function googleCallback(req, res) {
                 name: userInfo.name,
                 picture: userInfo.picture
             },
-            origin: "*"
+            origin: process.env.FRONT_URL // Cambiar al origen correcto del frontend JP
         }, nonce);
 
         res.status(200).end(callbackHTML);
+        });
 
     } catch (err) {
         console.error("❌ Error en googleCallback:", err);
 
         // Log adicional para errores de autenticación usando tu sistema
-        if (err.message.includes('no está autorizado')) {
+        if (err.message?.includes('no está autorizado')) {
             customLogger.logCustomError('authentication', 'Error de autorización durante login', {
-                event: 'AUTHORIZATION_ERROR',
+                event: 'GOOGLE_AUTHORIZATION_ERROR',
                 error: err.message,
                 stack: err.stack,
                 ip: req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0],
                 userAgent: req.headers['user-agent'],
-                sessionId: req.session.id,
+                sessionId: req.session?.id,
                 timestamp: new Date().toISOString(),
                 severity: 'HIGH',
                 category: 'SECURITY_ERROR'
@@ -311,8 +355,9 @@ export async function googleCallback(req, res) {
         }
 
         // Limpiar state en caso de error
-        if (req.session.oauth_state) {
+        if (sessionCleanupNeeded && req.session.oauth_state) {
             delete req.session.oauth_state;
+            delete req.session.oauth_state_expiry;
         }
 
         const nonce = crypto.randomBytes(16)
@@ -320,7 +365,8 @@ export async function googleCallback(req, res) {
             .replace(/\+/g, "-")
             .replace(/\//g, "_")
             .replace(/=+$/g, "");
-        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'self' 'nonce-${nonce}';`;
+
+        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';`;
 
         res.setHeader("Content-Security-Policy", csp);
         res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -331,12 +377,13 @@ export async function googleCallback(req, res) {
         const errorHTML = generateCallbackHTML({
             status: 'error',
             message: err.message || 'Error interno de autenticación',
-            origin: "*"
+            origin: process.env.FRONT_URL
         }, nonce);
 
         res.status(400).end(errorHTML);
     }
 }
+
 export function microsoftAuth(req, res, next) {
     try {
 
@@ -365,7 +412,7 @@ export function microsoftAuth(req, res, next) {
             scope: "openid email profile User.Read",
             state,
             response_mode: "query",
-            prompt: "consent"
+            prompt: "consent" // la deberia cambiar ? Jp
         }).toString();
 
         // 4. Asegurar que la sesión se escriba antes del redirect
@@ -476,6 +523,43 @@ export async function microsoftCallback(req, res) {
         console.log("🔄 Canjeando código Microsoft por token...", userEmail );
         await activeUsersCache.addUser(req.session.id, req.session.user);
 
+        console.log("✅ Usuario Microsoft autenticado y autorizado:", userEmail);
+
+        // 7. ⚠️ CRÍTICO: Guardar la sesión ANTES de enviar la respuesta Jp
+        req.session.save((err) => {
+    if (err) {
+        console.error("❌ Error guardando sesión:", err);
+        const error = new AuthenticationError(
+            'Error guardando sesión después de autenticación',
+            'SESSION_SAVE_ERROR',
+            { originalError: err.message }
+        );
+        
+        // Enviar respuesta de error
+        const nonce = crypto.randomBytes(16)
+            .toString("base64")
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/g, "");
+
+        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';`;
+        res.setHeader("Content-Security-Policy", csp);
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("X-Frame-Options", "DENY");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+
+        const errorHTML = generateCallbackHTML({
+            status: 'error',
+            message: error.message,
+            origin: process.env.FRONT_URL
+        }, nonce);
+
+        return res.status(500).end(errorHTML);
+            }
+            
+            console.log("💾 Sesión guardada exitosamente - Session ID:", req.session.id);
+
+        // Log de autenticación exitosa
         customLogger.logAuth('info', 'Usuario Microsoft autenticado exitosamente', {
             event: 'SUCCESSFUL_MICROSOFT_LOGIN',
             email: userEmail,
@@ -484,35 +568,34 @@ export async function microsoftCallback(req, res) {
             sessionId: req.session.id
         });
 
-        console.log("✅ Usuario Microsoft autenticado y autorizado:", userEmail);
-
-        // 7. Nonce seguro
+        // 8. Nonce seguro (DENTRO del callback)
         const nonce = crypto.randomBytes(16)
             .toString("base64")
             .replace(/\+/g, "-")
             .replace(/\//g, "_")
             .replace(/=+$/g, "");
 
-        // 8. CSP headers
-        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'self' 'nonce-${nonce}';`;
+        // 9. CSP headers
+        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';`;
 
         res.setHeader("Content-Security-Policy", csp);
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.setHeader("X-Frame-Options", "DENY");
         res.setHeader("X-Content-Type-Options", "nosniff");
 
-        // 9. HTML de respuesta exitosa
+        // 10. HTML de respuesta exitosa
+        console.log("📤 Enviando HTML de callback exitoso al popup");
         const callbackHTML = generateCallbackHTML({
             status: 'success',
             user: {
                 email: userEmail,
                 name: userInfo.displayName,
                 picture: userInfo.photo || null
-            },
-            origin: "*"
+            },origin: process.env.FRONT_URL // Cambiar al origen correcto del frontend JP
         }, nonce);
 
         res.status(200).end(callbackHTML);
+        });
 
     } catch (err) {
         console.error("❌ Error en microsoftCallback:", err);
@@ -544,7 +627,7 @@ export async function microsoftCallback(req, res) {
             .replace(/\//g, "_")
             .replace(/=+$/g, "");
 
-        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'self' 'nonce-${nonce}';`;
+        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';`;
 
         res.setHeader("Content-Security-Policy", csp);
         res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -555,7 +638,7 @@ export async function microsoftCallback(req, res) {
         const errorHTML = generateCallbackHTML({
             status: 'error',
             message: err.message || 'Error interno de autenticación Microsoft',
-            origin: "*"
+            origin: process.env.FRONT_URL // Cambiar al origen correcto del frontend JP
         }, nonce);
 
         res.status(400).end(errorHTML);

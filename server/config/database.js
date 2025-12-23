@@ -6,10 +6,10 @@ class DatabaseManager {
     constructor() {
         this.procesoClient = null;
         this.sistemaClient = null;
-        this.catalogosClient = null;
+        // this.catalogosClient = null; ya no se usa.Jp
         this.procesoDb = null;
         this.sistemaDb = null;
-        this.catalogosDb = null;
+        //this.catalogosDb = null;
     }
 
     async connectProceso() {
@@ -56,28 +56,28 @@ class DatabaseManager {
         }
         return this.sistemaDb;
     }
-    async connectCatalogos() {
-        if (!this.catalogosClient) {
-            this.catalogosClient = new MongoClient(environment.MONGODB_CATALOGOS, {
-                maxPoolSize: 10,
-                serverSelectionTimeoutMS: 5000,
-                socketTimeoutMS: 45000,
-            });
+    // async connectCatalogos() {
+    //     if (!this.catalogosClient) {
+    //         this.catalogosClient = new MongoClient(environment.MONGODB_CATALOGOS, {
+    //             maxPoolSize: 10,
+    //             serverSelectionTimeoutMS: 5000,
+    //             socketTimeoutMS: 45000,
+    //         });
 
-            try {
-                await this.sistemaClient.connect();
-                this.sistemaDb = this.sistemaClient.db('sistema');
-                console.log("✅ Conectado a la base de datos Catalogos");
-            } catch (err) {
-                throw new DatabaseConnectionError({
-                    message: 'No se pudo conectar a la base de datos Catalogos',
-                    meta: { uri: environment.MONGODB_CATALOGOS, db: 'catalogos' },
-                    cause: err
-                });
-            }
-        }
-        return this.catalogosDb;
-    }
+    //         try {
+    //             await this.sistemaClient.connect();
+    //             this.sistemaDb = this.sistemaClient.db('sistema');
+    //             console.log("✅ Conectado a la base de datos Catalogos");
+    //         } catch (err) {
+    //             throw new DatabaseConnectionError({
+    //                 message: 'No se pudo conectar a la base de datos Catalogos',
+    //                 meta: { uri: environment.MONGODB_CATALOGOS, db: 'catalogos' },
+    //                 cause: err
+    //             });
+    //         }
+    //     }
+    //     return this.catalogosDb;
+    // }
     async closeConnections() {
         try {
             const promises = [];
@@ -94,11 +94,11 @@ class DatabaseManager {
                 this.sistemaDb = null;
             }
 
-            if (this.catalogosClient) {
-                promises.push(this.catalogosClient.close());
-                this.catalogosClient = null;
-                this.catalogosDb = null;
-            }
+            // if (this.catalogosClient) {
+            //     promises.push(this.catalogosClient.close());
+            //     this.catalogosClient = null;
+            //     this.catalogosDb = null;
+            // }
 
             await Promise.all(promises);
             console.log('🔌 Todas las conexiones cerradas');
@@ -116,7 +116,7 @@ class DatabaseManager {
         return {
             proceso: this.procesoClient?.topology?.isConnected() || false,
             sistema: this.sistemaClient?.topology?.isConnected() || false,
-            catalogos: this.catalogosClient?.topology?.isConnected() || false
+            // catalogos: this.catalogosClient?.topology?.isConnected() || false
         };
     }
     getDatabase(dbType = 'proceso') {
@@ -137,18 +137,18 @@ class DatabaseManager {
                     });
                 }
                 return this.sistemaClient;
-            case "catalogos":
-                if (!this.catalogosClient) {
-                    throw new DatabaseConnectionError({
-                        message: 'Cliente de base de datos catalogos no inicializado',
-                        meta: { dbType, phase: 'getDatabase' }
-                    });
-                }
-                return this.catalogosClient;
+            // case "catalogos":
+            //     if (!this.catalogosClient) {
+            //         throw new DatabaseConnectionError({
+            //             message: 'Cliente de base de datos catalogos no inicializado',
+            //             meta: { dbType, phase: 'getDatabase' }
+            //         });
+            //     }
+            //     return this.catalogosClient;
             default:
                 throw new DatabaseConnectionError({
                     message: `Tipo de base de datos no válido: ${dbType}`,
-                    meta: { dbType, validTypes: ['proceso', 'sistema', 'catalogos'] }
+                    meta: { dbType, validTypes: ['proceso', 'sistema'] } //se quito catalogos
                 });
         }
     }

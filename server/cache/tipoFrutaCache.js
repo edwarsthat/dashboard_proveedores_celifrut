@@ -12,7 +12,7 @@ class tipoFrutasCache {
             const data = await DatabaseService.findElements(
                 "tipofrutas",
                 {},
-                'catalogos',
+                'proceso', //tenia catalogos y esa ya no existe en db.Jp
             )
 
             this.setTiposFruta(data)
