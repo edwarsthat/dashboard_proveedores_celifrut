@@ -181,11 +181,11 @@ export function generateCallbackHTML(data, nonce) {
             }
         };
 
-        try {
-            const channel = new BroadcastChannel('oauth_channel');
-            channel.postMessage(messageData);
-            channel.close();
-        } catch (e) {}
+        // try {
+        //     const channel = new BroadcastChannel('oauth_channel');
+        //     channel.postMessage(messageData);
+        //     channel.close();
+        // } catch (e) {}
 
         try {
             localStorage.setItem('oauth_result', JSON.stringify(messageData));
