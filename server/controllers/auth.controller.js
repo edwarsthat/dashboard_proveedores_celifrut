@@ -139,7 +139,7 @@ export async function googleAuth(req, res, next) {
         }
         // 1. Generar un 'state' aleatorio para seguridad (previene CSRF)
         const state = generateSecureState();
-        const stateExpiry = Date.now() + 15 * 60 * 1000; // 15 minutos
+        const stateExpiry = Date.now() + 15 * 60 * 1000; // se deja en 15 minutos para que se cierre el popup. Jp
 
         // 2. Guardar el state en la sesión del usuario
         req.session.oauth_state = state;
@@ -414,7 +414,7 @@ export function microsoftAuth(req, res, next) {
         }
 
         const state = generateSecureState();
-        const stateExpiry = Date.now() + 15 * 60 * 1000; // 15 minutos
+        const stateExpiry = Date.now() + 15 * 60 * 1000; // se dejan en 15 minutos para que se cierre el popup. Jp
 
         req.session.oauth_state = state;
         req.session.oauth_state_expiry = stateExpiry;
