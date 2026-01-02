@@ -314,7 +314,15 @@ export async function googleCallback(req, res) {
             .replace(/=+$/g, "");
 
         // 10. CSP
-        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';`;
+        const csp = `
+            default-src 'none';
+            base-uri 'none'; 
+            frame-ancestors 'none';
+            script-src 'nonce-${nonce}';
+            style-src 'unsafe-inline';
+            connect-src ${process.env.FRONT_URL};
+            frame-src ${process.env.FRONT_URL};
+            `;
 
         res.setHeader("Content-Security-Policy", csp);
         res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -366,7 +374,15 @@ export async function googleCallback(req, res) {
             .replace(/\//g, "_")
             .replace(/=+$/g, "");
 
-        const csp = `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';`;
+        const csp = `
+            default-src 'none';
+            base-uri 'none'; 
+            frame-ancestors 'none'; 
+            script-src 'nonce-${nonce}'; 
+            style-src 'unsafe-inline';
+            connect-src ${process.env.FRONT_URL};
+            frame-src ${process.env.FRONT_URL};
+            `;
 
         res.setHeader("Content-Security-Policy", csp);
         res.setHeader("Content-Type", "text/html; charset=utf-8");
