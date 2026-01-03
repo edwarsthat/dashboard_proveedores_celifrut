@@ -181,25 +181,45 @@ export function generateCallbackHTML(data, nonce) {
             }
         };
 
+        //creamos un array de promesas para enviar el mensaje por varios canales. Jp
+        const sendPromises = [];
+
+        // Intentamos enviar el mensaje por BroadcastChannel.Jp
         try {
             const channel = new BroadcastChannel('oauth_channel');
             channel.postMessage(messageData);
             channel.close();
-        } catch (e) {}
+            sendPromises.push(Promise.resolve());
+        } catch (e) {
+            console.warn("BroadcastChannel fallo:", e);
+        }
 
+        // Intentamos enviar el mensaje por localStorage.Jp
         try {
             localStorage.setItem('oauth_result', JSON.stringify(messageData));
-        } catch (e) {}
+            sendPromises.push(Promise.resolve());
+        } catch (e) {
+            console.warn("localStorage fallo:", e);
+        }
 
+        // Intentamos enviar el mensaje al window.opener.Jp
         try {
             if (window.opener && !window.opener.closed) {
                 window.opener.postMessage(messageData, ${JSON.stringify(origin)});
+                sendPromises.push(Promise.resolve());
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn("postMessage a openerfallo:", e);}
+
+        //cerramos el popup cuando todos los envios esten completos.Jp
+        Promise.all(sendPromises).finally(() => {
+            try { window.close(); } catch(e) {
+            console.warn("No se puede cerrar el popup automaticamente");
+            }
 
         setTimeout(() => {
             try { window.close(); } catch(e) {}
-        }, 1000);
+        }, 2000); //2 segundos
     })();
     </script>
 </body>
