@@ -172,7 +172,7 @@ export function generateCallbackHTML(data, nonce) {
         'use strict';
 
         const messageData = {
-            type: "oauth_callback",
+            type: "OAUTH_SUCCESS", //se cambia oauth_callback, ahora evento claro y unico JP
             status: ${JSON.stringify(status)},
             timestamp: Date.now(),
             ${status === 'success' 
@@ -181,45 +181,73 @@ export function generateCallbackHTML(data, nonce) {
             }
         };
 
-        //creamos un array de promesas para enviar el mensaje por varios canales. Jp
-        const sendPromises = [];
+        // //creamos un array de promesas para enviar el mensaje por varios canales. Jp
+        // const sendPromises = [];
 
-        // Intentamos enviar el mensaje por BroadcastChannel.Jp
-        try {
-            const channel = new BroadcastChannel('oauth_channel');
-            channel.postMessage(messageData);
-            channel.close();
-            sendPromises.push(Promise.resolve());
-        } catch (e) {
-            console.warn("BroadcastChannel fallo:", e);
-        }
+        // // Intentamos enviar el mensaje por BroadcastChannel.Jp
+        // try {
+        //     const channel = new BroadcastChannel('oauth_channel');
+        //     channel.postMessage(messageData);
+        //     channel.close();
+        //     sendPromises.push(Promise.resolve());
+        // } catch (e) {
+        //     console.warn("BroadcastChannel fallo:", e);
+        // }
 
-        // Intentamos enviar el mensaje por localStorage.Jp
-        try {
-            localStorage.setItem('oauth_result', JSON.stringify(messageData));
-            sendPromises.push(Promise.resolve());
-        } catch (e) {
-            console.warn("localStorage fallo:", e);
-        }
+        // // Intentamos enviar el mensaje por localStorage.Jp
+        // try {
+        //     localStorage.setItem('oauth_result', JSON.stringify(messageData));
+        //     sendPromises.push(Promise.resolve());
+        // } catch (e) {
+        //     console.warn("localStorage fallo:", e);
+        // }
+
+            /**
+             * - Eliminamos BroadcastChannel
+             * - Eliminamos localStorage
+             * - Eliminamos promesas
+             *
+             * OAuth popup NO debe esperar respuestas.
+             * Envía el mensaje y se cierra.
+             */
 
         // Intentamos enviar el mensaje al window.opener.Jp
         try {
             if (window.opener && !window.opener.closed) {
-                window.opener.postMessage(messageData, ${JSON.stringify(origin)});
-                sendPromises.push(Promise.resolve());
+        //Canal único, estándar y seguro para OAuth popup. Jp
+                window.opener.postMessage(
+                    messageData, 
+                    ${JSON.stringify(origin)}); //Validacion estricta de origin. Jp
             }
         } catch (e) {
-            console.warn("postMessage a openerfallo:", e);}
+            console.warn("postMessage a opener fallo:", e);}
 
-        //cerramos el popup cuando todos los envios esten completos.Jp
-        Promise.all(sendPromises).finally(() => {
-            try { window.close(); } catch(e) {
-            console.warn("No se puede cerrar el popup automaticamente");
-            }
+        // //cerramos el popup cuando todos los envios esten completos.Jp
+        // Promise.all(sendPromises).finally(() => {
+        //     try { window.close(); } catch(e) {
+        //     console.warn("No se puede cerrar el popup automaticamente");
+        //     }
+
+    /**
+     * CIERRE AGRESIVO
+     * No esperamos confirmación.
+     * En producción esto evita popups colgados.
+     */
 
         setTimeout(() => {
-            try { window.close(); } catch(e) {}
-        }, 2000); //2 segundos
+            try { window.close();
+                } catch(e) {
+                    console.warn("No se pudo cerrar el popup automaticamente");
+                    }
+        }, 300); 
+
+    /**
+     * BACKUP
+     * Algunos navegadores retrasan el cierre.
+     */
+    setTimeout(() => {
+        try { window.close(); } catch (e) {}
+    }, 2000) //2 segundos
     })();
     </script>
 </body>
