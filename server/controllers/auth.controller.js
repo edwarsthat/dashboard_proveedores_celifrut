@@ -295,7 +295,7 @@ export async function googleCallback(req, res) {
                 "frame-ancestors 'none'", 
                 `script-src 'nonce-${nonce}'`, 
                 "style-src 'unsafe-inline'",
-                `connect-src ${process.env.FRONT_URL}`,
+                `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega el 'self'
                 `frame-src ${process.env.FRONT_URL}`
                 ].join("; ");
                 
@@ -329,7 +329,7 @@ export async function googleCallback(req, res) {
             "frame-ancestors 'none'",
             `script-src 'nonce-${nonce}'`,
             "style-src 'unsafe-inline'",
-            `connect-src ${process.env.FRONT_URL}`,
+            `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega 'self'. Jp
             `frame-src ${process.env.FRONT_URL}`
             ].join("; ");
 
@@ -389,7 +389,7 @@ export async function googleCallback(req, res) {
             "frame-ancestors 'none'", 
             `script-src 'nonce-${nonce}'`, 
             "style-src 'unsafe-inline'",
-            `connect-src ${process.env.FRONT_URL}`,
+            `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega 'self'. Jp
             `frame-src ${process.env.FRONT_URL}`
             ].join("; ");
 
@@ -573,7 +573,7 @@ export async function microsoftCallback(req, res) {
             "frame-ancestors 'none'", 
             `script-src 'nonce-${nonce}'`, 
             "style-src 'unsafe-inline'",
-            `connect-src ${process.env.FRONT_URL}`,
+            `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega 'self'. Jp
             `frame-src ${process.env.FRONT_URL}`
             ].join("; ");
 
@@ -616,7 +616,7 @@ export async function microsoftCallback(req, res) {
             "frame-ancestors 'none'", 
             `script-src 'nonce-${nonce}'`, 
             "style-src 'unsafe-inline'",
-            `connect-src ${process.env.FRONT_URL}`,
+            `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega 'self'. Jp
             `frame-src ${process.env.FRONT_URL}`
             ].join("; ");
 
@@ -675,7 +675,7 @@ export async function microsoftCallback(req, res) {
             "frame-ancestors 'none'", 
             `script-src 'nonce-${nonce}'`, 
             "style-src 'unsafe-inline'",
-            `connect-src ${process.env.FRONT_URL}`,
+            `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega 'self'. Jp
             `frame-src ${process.env.FRONT_URL}`
             ].join("; ");
 
