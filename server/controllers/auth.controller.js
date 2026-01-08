@@ -295,7 +295,7 @@ export async function googleCallback(req, res) {
                 "frame-ancestors 'none'", 
                 `script-src 'nonce-${nonce}'`, 
                 "style-src 'unsafe-inline'",
-                `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega el 'self'
+                `connect-src ${process.env.FRONT_URL}`,
                 `frame-src ${process.env.FRONT_URL}`
                 ].join("; ");
                 
@@ -303,6 +303,11 @@ export async function googleCallback(req, res) {
                 res.setHeader("Content-Type", "text/html; charset=utf-8");
                 res.setHeader("X-Frame-Options", "DENY");
                 res.setHeader("X-Content-Type-Options", "nosniff");
+
+                //Agregar headers anti-caché. Jp
+                res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+                res.setHeader("Pragma", "no-cache");
+                res.setHeader("Expires", "0");
 
                 const errorHTML = generateCallbackHTML({
                     status: 'error',
@@ -329,7 +334,7 @@ export async function googleCallback(req, res) {
             "frame-ancestors 'none'",
             `script-src 'nonce-${nonce}'`,
             "style-src 'unsafe-inline'",
-            `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega 'self'. Jp
+            `connect-src ${process.env.FRONT_URL}`,
             `frame-src ${process.env.FRONT_URL}`
             ].join("; ");
 
@@ -338,6 +343,10 @@ export async function googleCallback(req, res) {
         res.setHeader("X-Frame-Options", "DENY");
         res.setHeader("X-Content-Type-Options", "nosniff");
 
+        //Agregar headers anti-caché. Jp
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
         // 11. HTML con múltiples intentos de envío y cierre rápido
         console.log("📤 Enviando HTML de callback exitoso al popup");
         const callbackHTML = generateCallbackHTML({
@@ -389,7 +398,7 @@ export async function googleCallback(req, res) {
             "frame-ancestors 'none'", 
             `script-src 'nonce-${nonce}'`, 
             "style-src 'unsafe-inline'",
-            `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega 'self'. Jp
+            `connect-src ${process.env.FRONT_URL}`,
             `frame-src ${process.env.FRONT_URL}`
             ].join("; ");
 
@@ -397,6 +406,11 @@ export async function googleCallback(req, res) {
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.setHeader("X-Frame-Options", "DENY");
         res.setHeader("X-Content-Type-Options", "nosniff");
+
+        //Agregar headers anti-caché. Jp
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
 
         console.log("📤 Notificando error al frontend");
         const errorHTML = generateCallbackHTML({
@@ -573,7 +587,7 @@ export async function microsoftCallback(req, res) {
             "frame-ancestors 'none'", 
             `script-src 'nonce-${nonce}'`, 
             "style-src 'unsafe-inline'",
-            `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega 'self'. Jp
+            `connect-src ${process.env.FRONT_URL}`,
             `frame-src ${process.env.FRONT_URL}`
             ].join("; ");
 
@@ -581,6 +595,11 @@ export async function microsoftCallback(req, res) {
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.setHeader("X-Frame-Options", "DENY");
         res.setHeader("X-Content-Type-Options", "nosniff");
+
+        //Agregar headers anti-caché. Jp
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
 
         const errorHTML = generateCallbackHTML({
             status: 'error',
@@ -616,7 +635,7 @@ export async function microsoftCallback(req, res) {
             "frame-ancestors 'none'", 
             `script-src 'nonce-${nonce}'`, 
             "style-src 'unsafe-inline'",
-            `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega 'self'. Jp
+            `connect-src ${process.env.FRONT_URL}`,
             `frame-src ${process.env.FRONT_URL}`
             ].join("; ");
 
@@ -624,6 +643,11 @@ export async function microsoftCallback(req, res) {
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.setHeader("X-Frame-Options", "DENY");
         res.setHeader("X-Content-Type-Options", "nosniff");
+
+        //Agregar headers anti-caché. Jp
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
 
         // 10. HTML de respuesta exitosa
         console.log("📤 Enviando HTML de callback exitoso al popup");
@@ -675,7 +699,7 @@ export async function microsoftCallback(req, res) {
             "frame-ancestors 'none'", 
             `script-src 'nonce-${nonce}'`, 
             "style-src 'unsafe-inline'",
-            `connect-src 'self' ${process.env.FRONT_URL}`, //se agrega 'self'. Jp
+            `connect-src ${process.env.FRONT_URL}`,
             `frame-src ${process.env.FRONT_URL}`
             ].join("; ");
 
@@ -683,6 +707,11 @@ export async function microsoftCallback(req, res) {
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.setHeader("X-Frame-Options", "DENY");
         res.setHeader("X-Content-Type-Options", "nosniff");
+
+        //Agregar headers anti-caché. Jp
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
 
         console.log("📤 Notificando error Microsoft al frontend");
         const errorHTML = generateCallbackHTML({
