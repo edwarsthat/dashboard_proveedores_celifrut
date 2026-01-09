@@ -41,7 +41,7 @@ app.use(
         secret: process.env.SESSION_SECRET || "supersecreto", // clave secreta
         resave: false, // no re-graba si no hubo cambios
         saveUninitialized: false, // no guarda sesiones vacías
-        cookie: { secure: true } // ⚠️ en producción ponlo en true con HTTPS ---------------------------------------------
+        cookie: { secure: false } // ⚠️ en producción ponlo en true con HTTPS, en local false ---------------------------------------------
     })
 );
 
