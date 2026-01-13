@@ -14,16 +14,16 @@ app.use(helmet({
     contentSecurityPolicy: {
         useDefaults: true,
         directives: {
+            "script-src": ["'self'", "'unsafe-inline'"],
             "img-src": [
                 "'self'",
                 "data:",
                 "blob:",
                 "lh3.googleusercontent.com",
                 "*.googleusercontent.com",
-                "ui-avatars.com" 
-                
+                "ui-avatars.com"
             ],
-            "connect-src": ["'self'", "graph.microsoft.com"] // si harás fetch de la foto de MS
+            "connect-src": ["'self'", "graph.microsoft.com"]
         }
     }
 }));
