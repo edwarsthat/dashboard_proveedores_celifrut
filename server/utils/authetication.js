@@ -7,7 +7,7 @@ export function generateSecureState() {
 }
 
 // templates/oauth-callback.js
-export function generateCallbackHTML(data, nonce) {
+export function generateCallbackHTML(data) {
     const { status, user, message, origin } = data;
     
     return `<!doctype html>
@@ -168,7 +168,7 @@ export function generateCallbackHTML(data, nonce) {
         </div>
     </main>
 
-    <script nonce="${nonce}">
+    <script>
     (function(){
         'use strict';
 

@@ -283,17 +283,11 @@ export async function googleCallback(req, res) {
                     { originalError: err.message }
                 );
 
-                const nonce = crypto.randomBytes(16)
-                    .toString("base64")
-                    .replace(/\+/g, "-")
-                    .replace(/\//g, "_")
-                    .replace(/=+$/g, "");
-
-                const csp = [ 
-                "default-src 'none'", 
-                "base-uri 'none'", 
-                "frame-ancestors 'none'", 
-                `script-src 'nonce-${nonce}'`, 
+                const csp = [
+                "default-src 'none'",
+                "base-uri 'none'",
+                "frame-ancestors 'none'",
+                "script-src 'unsafe-inline'",
                 "style-src 'unsafe-inline'",
                 `connect-src ${process.env.FRONT_URL}`,
                 `frame-src ${process.env.FRONT_URL}`
@@ -313,26 +307,19 @@ export async function googleCallback(req, res) {
                     status: 'error',
                     message: error.message,
                     origin: process.env.FRONT_URL
-                }, nonce);
+                });
 
                 return res.status(500).end(errorHTML);
             }
 
             console.log("💾 Sesión guardada exitosamente - Session ID:", req.session.id);
 
-        // 9. Nonce seguro
-        const nonce = crypto.randomBytes(16)
-            .toString("base64")
-            .replace(/\+/g, "-")
-            .replace(/\//g, "_")
-            .replace(/=+$/g, "");
-
-        // 10. CSP
+        // 9. CSP
         const csp = [
             "default-src 'none'",
-            "base-uri 'none'", 
+            "base-uri 'none'",
             "frame-ancestors 'none'",
-            `script-src 'nonce-${nonce}'`,
+            "script-src 'unsafe-inline'",
             "style-src 'unsafe-inline'",
             `connect-src ${process.env.FRONT_URL}`,
             `frame-src ${process.env.FRONT_URL}`
@@ -356,8 +343,8 @@ export async function googleCallback(req, res) {
                 name: userInfo.name,
                 picture: userInfo.picture
             },
-            origin: process.env.FRONT_URL // Cambiar al origen correcto del frontend JP
-        }, nonce);
+            origin: process.env.FRONT_URL
+        });
 
         res.status(200).end(callbackHTML);
         });
@@ -386,17 +373,11 @@ export async function googleCallback(req, res) {
             delete req.session.oauth_state_expiry;
         }
 
-        const nonce = crypto.randomBytes(16)
-            .toString("base64")
-            .replace(/\+/g, "-")
-            .replace(/\//g, "_")
-            .replace(/=+$/g, "");
-
         const csp = [
             "default-src 'none'",
-            "base-uri 'none'", 
-            "frame-ancestors 'none'", 
-            `script-src 'nonce-${nonce}'`, 
+            "base-uri 'none'",
+            "frame-ancestors 'none'",
+            "script-src 'unsafe-inline'",
             "style-src 'unsafe-inline'",
             `connect-src ${process.env.FRONT_URL}`,
             `frame-src ${process.env.FRONT_URL}`
@@ -417,7 +398,7 @@ export async function googleCallback(req, res) {
             status: 'error',
             message: err.message || 'Error interno de autenticación',
             origin: process.env.FRONT_URL
-        }, nonce);
+        });
 
         res.status(400).end(errorHTML);
     }
@@ -575,17 +556,11 @@ export async function microsoftCallback(req, res) {
         );
         
         // Enviar respuesta de error
-        const nonce = crypto.randomBytes(16)
-            .toString("base64")
-            .replace(/\+/g, "-")
-            .replace(/\//g, "_")
-            .replace(/=+$/g, "");
-
         const csp = [
-            "default-src 'none'", 
-            "base-uri 'none'", 
-            "frame-ancestors 'none'", 
-            `script-src 'nonce-${nonce}'`, 
+            "default-src 'none'",
+            "base-uri 'none'",
+            "frame-ancestors 'none'",
+            "script-src 'unsafe-inline'",
             "style-src 'unsafe-inline'",
             `connect-src ${process.env.FRONT_URL}`,
             `frame-src ${process.env.FRONT_URL}`
@@ -605,7 +580,7 @@ export async function microsoftCallback(req, res) {
             status: 'error',
             message: error.message,
             origin: process.env.FRONT_URL
-        }, nonce);
+        });
 
         return res.status(500).end(errorHTML);
             }
@@ -621,19 +596,12 @@ export async function microsoftCallback(req, res) {
             sessionId: req.session.id
         });
 
-        // 8. Nonce seguro (DENTRO del callback)
-        const nonce = crypto.randomBytes(16)
-            .toString("base64")
-            .replace(/\+/g, "-")
-            .replace(/\//g, "_")
-            .replace(/=+$/g, "");
-
-        // 9. CSP headers
+        // 8. CSP headers
         const csp = [
-            "default-src 'none'", 
-            "base-uri 'none'", 
-            "frame-ancestors 'none'", 
-            `script-src 'nonce-${nonce}'`, 
+            "default-src 'none'",
+            "base-uri 'none'",
+            "frame-ancestors 'none'",
+            "script-src 'unsafe-inline'",
             "style-src 'unsafe-inline'",
             `connect-src ${process.env.FRONT_URL}`,
             `frame-src ${process.env.FRONT_URL}`
@@ -649,7 +617,7 @@ export async function microsoftCallback(req, res) {
         res.setHeader("Pragma", "no-cache");
         res.setHeader("Expires", "0");
 
-        // 10. HTML de respuesta exitosa
+        // 9. HTML de respuesta exitosa
         console.log("📤 Enviando HTML de callback exitoso al popup");
         const callbackHTML = generateCallbackHTML({
             status: 'success',
@@ -657,8 +625,9 @@ export async function microsoftCallback(req, res) {
                 email: userEmail,
                 name: userInfo.displayName,
                 picture: userInfo.photo || null
-            },origin: process.env.FRONT_URL // Cambiar al origen correcto del frontend JP
-        }, nonce);
+            },
+            origin: process.env.FRONT_URL
+        });
 
         res.status(200).end(callbackHTML);
         });
@@ -687,17 +656,11 @@ export async function microsoftCallback(req, res) {
             delete req.session.oauth_state_expiry;
         }
 
-        const nonce = crypto.randomBytes(16)
-            .toString("base64")
-            .replace(/\+/g, "-")
-            .replace(/\//g, "_")
-            .replace(/=+$/g, "");
-
         const csp = [
-            "default-src 'none'", 
-            "base-uri 'none'", 
-            "frame-ancestors 'none'", 
-            `script-src 'nonce-${nonce}'`, 
+            "default-src 'none'",
+            "base-uri 'none'",
+            "frame-ancestors 'none'",
+            "script-src 'unsafe-inline'",
             "style-src 'unsafe-inline'",
             `connect-src ${process.env.FRONT_URL}`,
             `frame-src ${process.env.FRONT_URL}`
@@ -717,8 +680,8 @@ export async function microsoftCallback(req, res) {
         const errorHTML = generateCallbackHTML({
             status: 'error',
             message: err.message || 'Error interno de autenticación Microsoft',
-            origin: process.env.FRONT_URL // Cambiar al origen correcto del frontend JP
-        }, nonce);
+            origin: process.env.FRONT_URL
+        });
 
         res.status(400).end(errorHTML);
     }
