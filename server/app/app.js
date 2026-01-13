@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distPath = path.join(__dirname, "..", "..", "..", "front-end-dasboard-clientes-celifrut", "dist");
+const publicPath = path.join(__dirname, "..", "public");
 const app = express();
 
 app.use(helmet({
@@ -46,6 +47,7 @@ app.use(
 );
 
 app.use(express.static(distPath, { maxAge: "1d" }));
+app.use(express.static(publicPath));
 
 app.set("views", path.join(__dirname, "..", "views"));
 app.set("view engine", "ejs");

@@ -168,89 +168,19 @@ export function generateCallbackHTML(data) {
         </div>
     </main>
 
-    <script>
-    (function(){
-        'use strict';
+    <!-- Datos para el script externo -->
+    <div id="oauth-data"
+        data-status="${status}"
+        data-origin="${origin}"
+        ${status === 'success'
+            ? `data-email="${user.email}" data-name="${user.name}" data-picture="${user.picture || ''}"`
+            : `data-message="${message || 'Error de autenticación'}"`
+        }
+        style="display:none;">
+    </div>
 
-        const messageData = {
-            type: "OAUTH_SUCCESS", //se cambia oauth_callback, ahora evento claro y unico JP
-            status: ${JSON.stringify(status)},
-            timestamp: Date.now(),
-            ${status === 'success' 
-                ? `user: ${JSON.stringify(user)}`
-                : `error: { message: ${JSON.stringify(message)} }`
-            }
-        };
-
-        // //creamos un array de promesas para enviar el mensaje por varios canales. Jp
-        // const sendPromises = [];
-
-        // // Intentamos enviar el mensaje por BroadcastChannel.Jp
-        // try {
-        //     const channel = new BroadcastChannel('oauth_channel');
-        //     channel.postMessage(messageData);
-        //     channel.close();
-        //     sendPromises.push(Promise.resolve());
-        // } catch (e) {
-        //     console.warn("BroadcastChannel fallo:", e);
-        // }
-
-        // // Intentamos enviar el mensaje por localStorage.Jp
-        // try {
-        //     localStorage.setItem('oauth_result', JSON.stringify(messageData));
-        //     sendPromises.push(Promise.resolve());
-        // } catch (e) {
-        //     console.warn("localStorage fallo:", e);
-        // }
-
-            /**
-             * - Eliminamos BroadcastChannel
-             * - Eliminamos localStorage
-             * - Eliminamos promesas
-             *
-             * OAuth popup NO debe esperar respuestas.
-             * Envía el mensaje y se cierra.
-             */
-
-        // Intentamos enviar el mensaje al window.opener.Jp
-        try {
-            if (window.opener && !window.opener.closed) {
-        //Canal único, estándar y seguro para OAuth popup. Jp
-                window.opener.postMessage(
-                    messageData, 
-                    ${JSON.stringify(origin)}); //Validacion estricta de origin. Jp
-            }
-        } catch (e) {
-            console.warn("postMessage a opener fallo:", e);}
-
-        // //cerramos el popup cuando todos los envios esten completos.Jp
-        // Promise.all(sendPromises).finally(() => {
-        //     try { window.close(); } catch(e) {
-        //     console.warn("No se puede cerrar el popup automaticamente");
-        //     }
-
-    /**
-     * CIERRE AGRESIVO
-     * No esperamos confirmación.
-     * En producción esto evita popups colgados.
-     */
-
-        setTimeout(() => {
-            try { window.close();
-                } catch(e) {
-                    console.warn("No se pudo cerrar el popup automaticamente");
-                    }
-        }, 300); 
-
-    /**
-     * BACKUP
-     * Algunos navegadores retrasan el cierre.
-     */
-    setTimeout(() => {
-        try { window.close(); } catch (e) {}
-    }, 2000) //2 segundos
-    })();
-    </script>
+    <!-- Script externo para evitar problemas con CSP -->
+    <script src="/js/oauth-callback.js"></script>
 </body>
 </html>`;
 }
