@@ -98,6 +98,11 @@ export class EmailCache {
                 'admin@celifrut.com',
                 'gerencia@celifrut.com',
                 'sistemacelifrut@gmail.com',
+                'gerencia@celifrut.com',
+                'gerenciacomercial@celifrut.com',
+                'abastecimiento@celifrut.com',
+                'operaciones@celifrut.com',
+                'proyectos@celifrut.com'
             ];
         }
     }
